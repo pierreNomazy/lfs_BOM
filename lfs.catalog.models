@@ -1,0 +1,123 @@
+class Property(models.Model):
+    @property
+    def is_select_component(self):
+        return self.type == PROPERTY_SELECT_COMPONENT
+        
+        
+class PropertyComponents(models.Model):
+    """
+    Represents the relationship between property and components.
+
+    An component is a product,part of a Property which can be selected if type = 4
+    and which can be added to the cart together with it.
+
+    Using an explicit class here to store the position of a component within a property.
+
+    **Attributes:**
+    Property
+        The property of the relationship
+
+    component
+        The product of the relationship.  
+
+    position
+        The position of the accessory within the product.
+
+    quantity
+        The proposed amount of accessories for the product.
+    """
+    property = models.ForeignKey("Property", verbose_name=_(u"Property"), related_name="property_components_property")
+    components = models.ForeignKey("Product", verbose_name=_(u"Components"), related_name="product_components_property")
+    position = models.IntegerField(_(u"Position"), default=999)
+    quantity = models.FloatField(_(u"Quantity"), default=1)
+    	
+    class Meta:
+        ordering = ("position", )
+        verbose_name_plural = "Property Components"
+
+    def __unicode__(self):
+	return self.components.name
+
+    def name_component(self):
+	return self.components.name
+
+    def get_image_component(self):
+	return self.components.get_image
+
+    def get_url_component(self):
+	return self.components.get_absolute_url
+
+    def get_price(self):
+        """
+        Returns the total price of the accessory based on the product price and
+        the quantity in which the accessory is offered.
+        """
+        return self.components.price * self.quantity
+        
+class ProductPropertiesValid(models.Model):
+    """
+    For a product and his options of first property, stores the others options/properties valids.
+    **Attributes:**
+
+    product
+        The product for which the value is stored.
+    
+    options0_id
+        Id of the options of the first property.
+
+    property
+        The others properties
+
+    options_id
+        An id of an option or a composent (! id of the product object, not the id of the component object) of the others properties which is valid for an option of the first property   
+    """
+    product = models.ForeignKey(Product, verbose_name=_(u"Product"), related_name="product-property_valid") 
+    property = models.ForeignKey("Property", verbose_name=_(u"Property"), related_name="property_valid")
+    options0_id = models.IntegerField(_(u"Options0 valid"), blank=False, null=False)
+    options_id = models.IntegerField(_(u"Options valid"), blank=False, null=False)    
+    
+    class Meta:
+        unique_together = ("product", "property", "options0_id", "options_id")
+
+    def __unicode__(self):
+        return "%s: %s: %s: %s" % (self.product.name, self.property.name, self.options0_id, self.options_id)
+        
+def _calculate_property_price(properties):
+    """
+    Calculates the price of the currently selected properties : This must be customized
+    """
+    property_price = 0
+    property_number_field = 0
+    property_select_field = 0
+    for property_id, option_id in properties:
+	    if not option_id: option_id = 0
+            try:                
+                property = Property.objects.get(pk=property_id)
+		typ = property.type
+		if property.is_select_field:
+		    po = PropertyOption.objects.get(property=property, pk=option_id)
+                    if property.add_price:
+                         po_price = float(po.price)
+                         property_select_field = po_price
+	    except (IndexError, ValueError, TypeError, Property.DoesNotExist, PropertyOption.DoesNotExist):
+		pass
+    	    
+	    try:
+		property = Property.objects.get(pk=property_id)		
+		if property.is_select_component:		    	    
+                    po = PropertyComponents.objects.get(property=property, pk=option_id)
+                    if property.add_price:			
+                        po_price = float(po.get_price())
+                        property_price += po_price + 6
+			
+	    except (IndexError, ValueError, TypeError, Property.DoesNotExist, PropertyComponents.DoesNotExist):		
+		pass
+	    
+	    if property.is_number_field:                    
+                if property.add_price:
+                    po_price = float(option_id)
+                    property_number_field += po_price
+    #Special calculate where price = property.is_number_field/100 * property.is_select_field + prices of components + 6 Euros (labor)
+    property_price += property_select_field * property_number_field /100  		
+        
+    return property_price
