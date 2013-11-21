@@ -1,0 +1,10 @@
+{% load lfs_tags %}
+
+{% for property in properties %}
+	{% if property.image %}
+	<a target="_blank" href="{{ property.url }}"><img src="{{ property.image.image.url_200x200 }}"> 
+	</a>
+	<br>
+	{% endif %}
+{% endfor %}
+    
