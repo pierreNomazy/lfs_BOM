@@ -1,0 +1,117 @@
+...
+    {# Configurable Properties #}
+    {% if product.is_configurable_product %}
+	  <div class="cp-properties"
+              id="cp-url"
+              data="{% url lfs_calculate_price product.id %}">   
+          {% for property in properties0 %}
+<!-- Choice of the first property ... -->	   
+	      {% if property.obj.is_select_field %}
+                        <span class="property-label">
+                            {{ property.title }}:
+                        </span>
+                        <span>
+                            <select class="cp-property0"
+                                    name="property0-{{ property.id }}">
+                                {% if not property.obj.required %}
+                                    <option>---</option>
+                                {% endif %}
+                                {% for option in property.options %}
+                                    <option value="{{ option.id }}">
+                                        {{ option.name }} 
+
+                                        {% if property.display_price %}
+                                         / {{ option.price|currency:request}}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </span>
+                        <br>
+              {% else %}
+			Error : the first property must be a select field
+                        <span class="property-label">
+                            {{ property.title }}:
+                        </span>
+                        <span class="right">
+                            {% if property.obj.is_text_field %}
+                                <input class="product-input-field text-field" type="input" size="15" maxlength="100" name="property-{{ property.id }}" value="{{ property.value }}" />
+                            {% else %}
+				{% if property.obj.is_number_field %}
+                                	<input class="right product-input-field number-field" type="input" size="6" maxlength="9" name="property-{{ property.id }}" value="{{ property.value }}" />
+				{% else %}						
+                            		<select 
+                                    	name="property-{{ property.id }}">
+                                	{% if not property.obj.required %}
+                                    		<option>---</option>
+                                	{% endif %}
+					
+                                        {% for component in property.components %}						
+                                    		<option class="cp-property0" value="{{ component.id }}"
+                                        	{% if component.selected %}selected="selected"{% endif %}>
+                                        	{{ component.name }} 
+
+                                        	{% if property.display_price %}
+                                         	/ {{ component.price|currency:request}}						
+                                        	{% endif %}						
+                                    		</option>
+                                	{% endfor %}
+					
+                            		</select>
+                        </span>
+				{% endif %}
+			    {% endif %}
+              {% endif %}
+              
+              <span>
+              {{ property.unit }}
+              </span>             
+              
+          {% endfor %}	
+	  </div>       
+<!-- which limits the valid options/components of the others properties --> 
+	  <br>
+          <div class="cp-validation"> 
+          {{ property_component_qualification_validated }}                 
+          </div>
+    {% endif %}      
+
+    <br clear="both">
+    {% if product.is_deliverable %}
+        <table align="right" class="buttons">
+            <tr>
+                {% if product.get_active_packing_unit %}
+                    <td>
+                        <div class="product-quantity packing-unit"
+                            id="packing-url"
+                            data="{% url lfs_calculate_packing product.id %}">
+                            <input class="number quantity"
+                                   name="quantity"
+                                   size="3"
+                                   type="text"
+                                   value="{{ quantity }}" /> {{ unit }}
+                        </div>
+                    </td>
+                {% else %}
+                    <td>
+                        {% if unit %}
+                            {{ unit }}:
+                        {% else %}
+                            {% trans "Quantity" %}:
+                        {% endif %}
+                    </td>
+                    <td class="product-quantity">
+                        <input class="number"
+                               name="quantity"
+                               size="3"
+                               type="text"
+                               value="{{ quantity }}" />
+                    </td>
+                {% endif %}
+                <td nowrap="nowrap">
+                    <button class="emphasized"
+                           type="submit"
+                           name="add-to-cart">{% trans 'Add to cart' %}</button>
+                </td>
+            </tr>
+        </table>
