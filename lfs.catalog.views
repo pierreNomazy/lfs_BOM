@@ -1,0 +1,321 @@
+from lfs.catalog.models import ProductPropertyValue, ProductPropertiesValid, _calculate_property_price
+
+
+
+def images_components(request, id, as_string=False, template_name="lfs/catalog/products/images_components.html"):
+    product = Product.objects.get(pk=id)
+    properties = []
+    for property in product.get_configurable_properties():
+	    if property != product.get_configurable_properties()[0] and property.is_select_component and request.method == 'POST':
+			choice = "property"+"-"+str(property.id)
+			if request.POST.get(choice): choice_component = request.POST.get(choice)	
+			try:				
+			    property_component_choice = PropertyComponents.objects.get(property=property, id=choice_component)
+			    image = property_component_choice.get_image_component()
+			    url = property_component_choice.get_url_component()
+			    properties.append({
+				"image": image,
+				"url":url,
+            		    })	            	    			    	
+			except PropertyComponents.DoesNotExist:
+			    pass
+	    else:
+			pass			
+			            
+	    
+    html = render_to_string(template_name, RequestContext(request, {
+        "properties": properties,        
+    }))
+       
+    if as_string:
+        return html
+
+    result = simplejson.dumps({
+        "html": html,
+    }, cls=LazyEncoder)
+    	
+    return HttpResponse(result)
+
+def calculate_component_validated(request, id, as_string=False, template_name="lfs/catalog/products/product_property_validated.html"):
+    """Calculates the components validated upon request
+    """
+    product = Product.objects.get(pk=id)
+    option_selected = 0
+    for key, option_id in request.POST.items():
+        if key.startswith("property0"):
+            try:
+                property_id = int(key.split('-')[1])
+                property = Property.objects.get(pk=property_id)
+                if property.is_select_field:
+                    #po = PropertyOption.objects.get(property=property, pk=option_id)
+		    option_selected = option_id                    
+            except (IndexError, ValueError, TypeError, PropertyOption.DoesNotExist, Property.DoesNotExist):
+                pass   
+
+    properties = []
+    for property in product.get_configurable_properties():
+	    if property != product.get_configurable_properties()[0]:
+		try:
+                	ppv = ProductPropertyValue.objects.get(product=product, property=property, type=PROPERTY_VALUE_TYPE_DEFAULT)
+                	ppv_value = ppv.value
+		
+            	except ProductPropertyValue.DoesNotExist:
+                	ppv = None
+                	ppv_value = ""
+
+		options = []
+            	for property_option in property.options.all():
+                	if ppv_value == str(property_option.id):
+                	    selected = True
+                	else:
+                	    selected = False
+			
+			if request.method == 'POST':
+			    try:				
+			    	ppvd = ProductPropertiesValid.objects.get(product=product, options0_id=option_selected, property=property, options_id=property_option.id)
+                	    	options.append({
+                	    		"id": property_option.id,
+                	    		"name": property_option.name,
+                	    		"price": property_option.price,
+                	    		"selected": selected,
+                	   	})
+			    except ProductPropertiesValid.DoesNotExist:
+			        pass
+			else:
+                	    options.append({
+                	    	"id": property_option.id,
+                	    	"name": property_option.name,
+                	    	"price": property_option.price,
+                	    	"selected": selected,
+                	    })
+			    
+	    	components = []
+	    	for property_component in property.property_components_property.all():	    
+                	if ppv_value == str(property_component.id):
+                	    selected = True
+                	else:
+                	    selected = False
+		
+			if request.method == 'POST':
+			    try:				
+			    	ppvd = ProductPropertiesValid.objects.get(product=product, options0_id=option_selected, property=property, options_id=property_component.components.id)
+				#pp = Product.objects.get(pk=property_component.components.id)	
+							
+                	    	components.append({
+                	    		"id": property_component.id,
+                	    		"name": property_component.name_component,
+                	    		"price": property_component.get_price,                	    		
+                	   	})
+			    	
+			    except ProductPropertiesValid.DoesNotExist:
+			        pass
+			    
+			else:	        	    		
+                	    components.append({
+                	    	"id": property_component.id,
+                	    	"name": property_component.name_component,
+                	    	"price": property_component.get_price,
+                	     })
+		
+            	properties.append({
+                	"obj": property,
+                	"id": property.id,
+                	"name": property.name,
+                	"title": property.title,
+                	"unit": property.unit,
+                	"display_price": property.display_price,
+                	"options": options,
+	        	"components":components,
+                	"value": ppv_value,
+            	})
+	    
+    html = render_to_string(template_name, RequestContext(request, {
+        "properties": properties,        
+    }))
+       
+    if as_string:
+        return html
+
+    result = simplejson.dumps({
+        "html": html,
+    }, cls=LazyEncoder)
+    	
+    return HttpResponse(result)
+
+def calculate_price(request, id):
+    """Calculates the price of the product on base of choosen properties after
+    a customer has selected a property on product view.
+    """
+    product = Product.objects.get(pk=id)
+    properties = []
+    for key, option_id in request.POST.items():	
+        if key.startswith("property"):
+	    property_id = int(key.split('-')[1])
+	    properties.append((property_id, option_id))    
+    property_price = _calculate_property_price(properties)
+
+    if product.for_sale:
+        for_sale_standard_price = product.get_standard_price(request, with_properties=False)
+        for_sale_standard_price += property_price
+
+        for_sale_price = product.get_for_sale_price(request, with_properties=False)
+        for_sale_price += property_price
+    else:
+        for_sale_standard_price = 0
+        for_sale_price = 0
+
+    price = product.get_price(request, with_properties=False)
+    price += property_price    	    
+    
+            
+    result = simplejson.dumps({
+        "price": lfs_tags.currency(price, request),
+        "for-sale-standard-price": lfs_tags.currency(for_sale_standard_price),
+        "for-sale-price": lfs_tags.currency(for_sale_price),
+        "packing-result": calculate_packing(request, id, as_string=True),
+	"images-components": images_components(request, id, as_string=True),
+	"property_component_qualification_validated": calculate_component_validated(request, id, as_string=True),
+        "message": _("Price has been changed according to your selection."),
+    }, cls=LazyEncoder)
+
+    return HttpResponse(result)
+    
+def product_inline(request, product, template_name="lfs/catalog/products/product_inline.html"):
+    """
+    Part of the product view, which displays the actual data of the product.
+
+    This is factored out to be able to better cached and in might in future used
+    used to be updated via ajax requests.
+    """
+    cache_key = "%s-product-inline-%s-%s" % (settings.CACHE_MIDDLEWARE_KEY_PREFIX, request.user.is_superuser, product.id)
+    result = cache.get(cache_key)
+    if result is not None:
+        return result
+    
+    # Switching to default variant
+    if product.is_product_with_variants():
+        temp = product.get_default_variant()
+        product = temp if temp else product
+
+    properties0 = []	
+    properties = []
+    variants = []
+
+    display_variants_list = True
+    if product.is_variant():
+        parent = product.parent
+        if parent.variants_display_type == SELECT:
+            display_variants_list = False
+            # Get all properties (sorted). We need to traverse through all
+            # property/options to select the options of the current variant.
+            for property in parent.get_property_select_fields():
+                options = []
+                for property_option in property.options.all():
+                    if product.has_option(property, property_option):
+                        selected = True
+                    else:
+                        selected = False
+                    options.append({
+                        "id": property_option.id,
+                        "name": property_option.name,
+                        "selected": selected,
+                    })
+                properties.append({
+                    "id": property.id,
+                    "name": property.name,
+                    "title": property.title,
+                    "unit": property.unit,
+                    "options": options,
+                })
+        else:
+            properties = parent.get_property_select_fields()
+            variants = parent.get_variants()
+
+    elif product.is_configurable_product():
+         	property = product.get_configurable_properties()[0]
+
+            	try:
+                	ppv = ProductPropertyValue.objects.get(product=product, property=property, type=PROPERTY_VALUE_TYPE_DEFAULT)
+                	ppv_value = ppv.value
+		
+            	except ProductPropertyValue.DoesNotExist:
+                	ppv = None
+                	ppv_value = ""
+
+		options = []
+            	for property_option in property.options.all():
+                	if ppv_value == str(property_option.id):
+                	    selected = True
+                	else:
+                	    selected = False
+			# We use PPV object and PROPERTY_VALUE_TYPE_DISPLAY to limit the options displayed of the property
+			try:
+			    ppvd = ProductPropertyValue.objects.get(product=product, property=property, type=PROPERTY_VALUE_TYPE_DISPLAY, value=property_option.id)
+                	    options.append({
+                	    	"id": property_option.id,
+                	    	"name": property_option.name,
+                	    	"price": property_option.price,
+                	    	"selected": selected,
+                	    })
+			except ProductPropertyValue.DoesNotExist:
+			    pass
+	        	
+	    	components = []
+	    	for property_component in property.property_components_property.all():	    
+                	if ppv_value == str(property_component.id):
+                	    selected = True
+                	else:
+                	    selected = False	        
+	    
+			name = property_component.name_component		
+	        	price = property_component.get_price(request)
+	    		
+                	components.append({
+                	    "id": property_component.id,
+                	    "name": name,
+                	    "price": price,
+                	    "selected": selected,
+                	})
+	    
+            	properties0.append({
+                	"obj": property,
+                	"id": property.id,
+                	"name": property.name,
+                	"title": property.title,
+                	"unit": property.unit,
+                	"display_price": property.display_price,
+                	"options": options,
+	        	"components":components,
+                	"value": ppv_value,
+            	})
+
+    if product.get_template_name() != None:
+        template_name = product.get_template_name()
+
+    if product.get_active_packing_unit():
+        packing_result = calculate_packing(request, product.id, 1, True, True)
+    else:
+        packing_result = ""
+
+    # attachments
+    attachments = product.get_attachments()
+
+    result = render_to_string(template_name, RequestContext(request, {
+        "product": product,
+        "variants": variants,
+        "product_accessories": product.get_accessories(),
+	"properties0": properties0,
+	"properties": properties,
+	"property_component_qualification_validated": calculate_component_validated(request, product.id, as_string=True),      
+        "packing_result": packing_result,
+        "attachments": attachments,
+        "quantity": product.get_clean_quantity(1),
+        "price_includes_tax": product.price_includes_tax(request),
+        "price_unit": product.get_price_unit(),
+        "unit": product.get_unit(),
+        "display_variants_list": display_variants_list,
+        "for_sale": product.get_for_sale(),
+    }))
+
+    cache.set(cache_key, result)
+    return result
