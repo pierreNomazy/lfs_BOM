@@ -31,9 +31,10 @@ In views.py
 modify : product_inline, calculate_price, calculate_property_price 
 add : calculate_component_validated, images_components
 
-In lfs.catalog move and correct _calculate_property_price from views to models in order to use it in product_inline and in cart_inline.
-Specific rules for computation of the price must be modified in _calculate_property_price
-In lfs.catalog.views, line 225 change _calculate_property_price with :
+In lfs.catalog move and correct '_calculate_property_price' from views to models in order to use it in product_inline and in cart_inline.
+Specific rules for computation of the price must be modified in '_calculate_property_price'
+In lfs.catalog.views, line 225 change '_calculate_property_price' with :
+
 properties = []
  for key, option_id in request.POST.items():	
         	    if key.startswith("property"):
