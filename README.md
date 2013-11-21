@@ -7,6 +7,7 @@ LFS and configurable product with components.
 A configurable product can be a bill of materials. The customer can select his components, the web site calculate the BoM price and display components image.
 
 ------------ EXAMPLE --------------
+
 On a web site selling configurable PC, a customer can choose first  his motherboard (Chipset Intel, AMD, ...), then his CPU ( 1GHz, 1.5 GHz, ..), his RAM ..., hard disk ....
 The choice is made by property in options and in components that can be purchased separatly too.
 Choice on fist property limit component choices on other properties, with a javascript action.
@@ -14,6 +15,7 @@ Choice on other properties change the sub_images to components images.
 Minor modification : The ProductPropertyValue is used to display option or components of properties in the select menu, not to display them in the product configurated. Suppose you suspend selling a component or an option, set up False to his Display ProductPropertyValue. 
 
 ------------ ADD in LFS07 ---------
+
 Add a 4st type of property : property with components
 In lfs/catalog/settings.py :
 PROPERTY_SELECT_COMPONENT = 4
