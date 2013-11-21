@@ -71,7 +71,5 @@ elif property.is_select_component:
                     value = component.name_component
                     price = component.get_price
 
-In lfs.catalog.cart.views.py
-In line 250 delete only the charactere "-" in  " if key.startswith("property-"): "
 
 In lfs.cart.added_to_cart_items, and in cart_inline.html and in checkout_cart-inline.html delete or comment line display_property 35 to 39.
