@@ -1,0 +1,67 @@
+{% load i18n %}
+{% load lfs_tags %}
+	    {% for property in properties %}
+             
+                    {% if property.obj.is_select_field %}
+                        <span class="property-label">
+                            {{ property.title }}:
+                        </span>
+                        <span>
+                            <select class="cp-property"
+                                    name="property-{{ property.id }}">
+                                {% if not property.obj.required %}
+                                    <option>---</option>
+                                {% endif %}
+                                {% for option in property.options %}
+                                    <option value="{{ option.id }}"
+                                        {% if option.selected %}selected="selected"{% endif %}>
+                                        {{ option.name }} 
+
+                                        {% if property.display_price %}
+                                         / {{ option.price|currency:request}}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </span>
+                        <span></span>
+                    {% else %}
+                        <span class="property-label">
+                            {{ property.title }}:
+                        </span>
+                        <span class="right">
+                            {% if property.obj.is_text_field %}
+                                <input class="product-input-field text-field" type="input" size="15" maxlength="100" name="property-{{ property.id }}" value="{{ property.value }}" />
+				<span></span>
+                            {% else %}
+				{% if property.obj.is_number_field %}
+					<span class="cp-property">
+                                	<input class="right product-input-field number-field" type="input" size="6" maxlength="9" name="property-{{ property.id }}" value="{{ property.value }}" />
+					</span>
+					<span></span>
+				{% else %}											
+                            		<select class="cp-property"
+                                    	name="property-{{ property.id }}">
+                                	{% if not property.obj.required %}
+                                    		<option>---</option>
+                                	{% endif %}
+					
+                                        {% for component in property.components %}						
+                                    		<option value="{{ component.id }}">
+                                        	{{ component.name }}
+                                        	{% if property.display_price %}
+                                         	/ {{ component.price|currency:request}}						
+                                        	{% endif %}						
+                                    		</option>
+                                	{% endfor %}					
+                            		</select>	                		
+				{% endif %}
+                            {% endif %}
+                        </span>
+                        <span>
+                            {{ property.unit }}
+                        </span>
+			<br>
+		    {% endif %}
+              <br><br> 
+              {% endfor %}
